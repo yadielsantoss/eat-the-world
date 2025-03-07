@@ -1,0 +1,217 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = " " .. Fluent.Version,
+    SubTitle = "By iamrich",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
+})
+
+local Tabs = {
+    HI = Window:AddTab({ Title = "HI", Icon = "" }),
+
+}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Toggle = Tabs.HI:AddToggle("STRENGTH", {Title = "Sell", Default = false})
+
+local isRunning = false
+
+-- Listen for the toggle change
+Toggle:OnChanged(function(state)
+    if state then
+        if not isRunning then
+            isRunning = true
+            task.spawn(function()
+                while isRunning do
+                    -- Ensure LocalPlayer exists
+                    if LocalPlayer then
+                        -- Get LocalPlayer's GUI elements
+                        local keyboardInfo = LocalPlayer:FindFirstChild("PlayerGui")
+                            and LocalPlayer.PlayerGui:FindFirstChild("ScreenGui")
+                            and LocalPlayer.PlayerGui.ScreenGui:FindFirstChild("ActionButtons")
+                            and LocalPlayer.PlayerGui.ScreenGui.ActionButtons:FindFirstChild("KeyboardInfo")
+
+                        local eatButton = keyboardInfo and keyboardInfo:FindFirstChild("Eat")
+
+                        if eatButton and eatButton.Visible then
+                            -- Check SellText visibility
+                            local sellGui = LocalPlayer:FindFirstChild("PlayerGui")
+                                and LocalPlayer.PlayerGui:FindFirstChild("ScreenGui")
+                                and LocalPlayer.PlayerGui.ScreenGui:FindFirstChild("Sell")
+
+                            local sellText = sellGui and sellGui:FindFirstChild("SellText")
+
+                            if sellText and sellText.Visible then
+                                LocalPlayer.Character.Events.Sell:FireServer()
+                            end
+                        end
+                    end
+
+                    task.wait(0) -- Prevents excessive looping
+                end
+            end)
+        end
+    else
+        isRunning = false
+    end
+end)
+
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Toggle = Tabs.HI:AddToggle("STRENGTH", {Title = "Grab", Default = false})
+
+local isRunning = false
+local grabCooldown = false
+
+Toggle:OnChanged(function(state)
+    if state then
+        if not isRunning then
+            isRunning = true
+            task.spawn(function()
+                while isRunning do
+                    if not grabCooldown then
+                        grabCooldown = true
+                        
+                        task.wait(0.8) -- Short delay before attempting grab
+                        
+                        if not isRunning then return end -- Exit if toggle was turned off
+
+                        -- Check for the LocalPlayer's GUI components
+                        local keyboardInfo = LocalPlayer:FindFirstChild("PlayerGui")
+                            and LocalPlayer.PlayerGui:FindFirstChild("ScreenGui")
+                            and LocalPlayer.PlayerGui.ScreenGui:FindFirstChild("ActionButtons")
+                            and LocalPlayer.PlayerGui.ScreenGui.ActionButtons:FindFirstChild("KeyboardInfo")
+
+                        local grab = keyboardInfo and keyboardInfo:FindFirstChild("Grab")
+
+                        -- Ensure grab button is visible before firing event
+                        if grab and grab.Visible then
+                            LocalPlayer.Character.Events.Grab:FireServer(false, false)
+                        end
+                        
+                        task.wait(0.8) -- Cooldown period
+                        grabCooldown = false
+                    end
+                    
+                    task.wait(0) -- Small delay to prevent excessive CPU usage
+                end
+            end)
+        end
+    else
+        isRunning = false
+    end
+end)
+
+
+
+
+local Toggle = Tabs.HI:AddToggle("STRENGTH", {Title = "Eat", Default = false})
+
+local isRunning = false
+
+-- Listen for the toggle change
+Toggle:OnChanged(function(state)
+    if state then
+        -- Start the loop when the toggle is on
+        if not isRunning then
+            isRunning = true
+            -- Loop while the toggle is on
+            while isRunning do
+                -- Set the arguments for the egg purchase
+                game:GetService("Players").LocalPlayer.Character.Events.Eat:FireServer()
+
+
+                -- Sleep for a short period to prevent overwhelming the server
+                wait(0)  -- Adjust the interval as needed
+            end
+        end
+    else
+        -- Stop the loop when the toggle is off
+        isRunning = false
+    end
+end)
+
+Tabs.HI:AddButton({
+    Title = "npc",
+    Description = "NPC will get stuck but it fix alone",
+    Callback = function()
+        local PathfindingService = game:GetService("PathfindingService")
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+local detectionRadius = 5 -- How close an obstacle needs to be
+local movementRange = 100 -- Range for movement in all directions
+local moveDelay = 5 -- Move every 5 seconds
+
+local function getRandomPosition()
+    return rootPart.Position + Vector3.new(
+        math.random(-movementRange, movementRange), 
+        0, 
+        math.random(-movementRange, movementRange)
+    )
+end
+
+local function isObstacleNearby()
+    local obstacles = workspace:GetPartBoundsInRadius(rootPart.Position, detectionRadius)
+    for _, part in pairs(obstacles) do
+        if part:IsA("BasePart") and part.Parent ~= character then
+            return true -- Detected an obstacle close by
+        end
+    end
+    return false
+end
+
+local function isPlayerStuck()
+    return rootPart.Velocity.Magnitude < 0.1 -- Check if the player is barely moving
+end
+
+local function moveRandomly()
+    while true do
+        local targetPosition = getRandomPosition()
+        local path = PathfindingService:CreatePath({
+            AgentRadius = 2,
+            AgentHeight = 5,
+            AgentCanJump = true,
+        })
+
+        path:ComputeAsync(rootPart.Position, targetPosition)
+
+        if path.Status == Enum.PathStatus.Success then
+            local waypoints = path:GetWaypoints()
+
+            for _, waypoint in pairs(waypoints) do
+                humanoid:MoveTo(waypoint.Position)
+
+                -- Continuously check for obstacles and if stuck
+                while humanoid.MoveToFinished:Wait() do
+                    if isObstacleNearby() then
+                        print("Obstacle detected! Changing direction...")
+                        break
+                    elseif isPlayerStuck() then
+                        print("Player is stuck! Jumping...")
+                        humanoid.Jump = true -- Make the player jump to free themselves
+                        task.wait(0) -- Give some time before continuing
+                        break
+                    end
+                end
+            end
+        end
+
+        task.wait(moveDelay) -- Wait 5 seconds before moving to a new random location
+    end
+end
+
+task.spawn(moveRandomly) -- Start the infinite movement with random direction every 5 seconds
+
+    end
+})
